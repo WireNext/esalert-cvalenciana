@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simulador ES-Alert Comunitat Valenciana</title>
+  <title>Simulador ES-Alert Comunitat Valenciana - Mapa d'Incidències</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
   <style>
     :root {
       --primary: #d32f2f;
@@ -11,6 +15,7 @@
       --card-bg: #1e1e1e;
       --text: #ffffff;
       --text-sub: #aaa;
+      --accent: #2196f3;
     }
 
     body {
@@ -18,72 +23,180 @@
       background-color: var(--bg);
       color: var(--text);
       margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
       min-height: 100vh;
     }
 
-    .container {
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 20px;
       width: 100%;
-      max-width: 420px;
-      padding: 20px;
-      box-sizing: border-box;
+      max-width: 1300px;
     }
 
-    /* Pantalla del teléfono simulado */
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Panel del mapa e incidencias */
+    .dashboard {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      border: 1px solid #2a2a2a;
+    }
+
+    #map {
+      height: 480px;
+      width: 100%;
+      border-radius: 12px;
+      z-index: 1;
+    }
+
+    .incident-feed {
+      max-height: 250px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .incident-item {
+      background: #282828;
+      border-left: 4px solid var(--primary);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .incident-item.rain { border-color: #0288d1; }
+    .incident-item.fire { border-color: #f57c00; }
+    .incident-item.chemical { border-color: #7b1fa2; }
+
+    .incident-time {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+    }
+
+    /* Simulación del móvil */
+    .phone-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
     .phone {
       background: #000;
-      border: 12px solid #333;
-      border-radius: 40px;
-      height: 650px;
+      border: 10px solid #333;
+      border-radius: 36px;
+      height: 600px;
+      width: 320px;
       position: relative;
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      background-size: cover;
-      background-position: center;
     }
 
-    /* Fondo simulado de pantalla de bloqueo */
     .phone-screen {
-      padding: 40px 20px 20px 20px;
+      padding: 30px 15px 15px 15px;
       text-align: center;
     }
 
     .clock {
-      font-size: 3.5rem;
+      font-size: 3rem;
       font-weight: 300;
       margin-top: 20px;
     }
 
     .date {
-      font-size: 1rem;
+      font-size: 0.9rem;
       color: var(--text-sub);
     }
 
-    /* Panel de controles */
-    .controls {
-      background: var(--card-bg);
+    /* Pop-up de la alerta en pantalla */
+    .alert-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
       padding: 15px;
-      border-radius: 12px;
-      margin-top: 20px;
+      z-index: 100;
+      animation: fadeIn 0.25s ease-out;
     }
 
-    .form-group {
-      margin-bottom: 12px;
+    .alert-box {
+      background: #fff;
+      color: #000;
+      border-radius: 16px;
+      padding: 18px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .alert-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: var(--primary);
+      font-weight: bold;
+      font-size: 1rem;
+      margin-bottom: 10px;
+    }
+
+    .alert-body {
+      font-size: 0.85rem;
+      line-height: 1.35;
+      margin-bottom: 15px;
+      text-align: left;
+    }
+
+    .alert-btn {
+      background: #007aff;
+      color: white;
+      border-radius: 8px;
+      padding: 10px;
+      font-weight: 600;
+      border: none;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    /* Controles de envío */
+    .control-panel {
+      margin-top: 15px;
+      width: 100%;
     }
 
     label {
       display: block;
-      font-size: 0.85rem;
-      margin-bottom: 5px;
+      font-size: 0.8rem;
+      margin-bottom: 4px;
       color: var(--text-sub);
     }
 
-    select, input, textarea, button {
+    select, textarea, button {
       width: 100%;
       padding: 10px;
       border-radius: 8px;
@@ -91,71 +204,18 @@
       background: #2b2b2b;
       color: #fff;
       box-sizing: border-box;
+      margin-bottom: 10px;
     }
 
-    button {
+    button.send-btn {
       background-color: var(--primary);
-      color: white;
       font-weight: bold;
       border: none;
       cursor: pointer;
-      margin-top: 10px;
-      transition: background 0.2s;
     }
 
-    button:hover {
+    button.send-btn:hover {
       background-color: #b71c1c;
-    }
-
-    /* Pop-up de la alerta estilo móvil */
-    .alert-overlay {
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.75);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-      z-index: 100;
-      animation: fadeIn 0.3s ease-out;
-    }
-
-    .alert-box {
-      background: #fdfdfd;
-      color: #000;
-      border-radius: 18px;
-      padding: 20px;
-      width: 100%;
-      text-align: center;
-      box-shadow: 0 5px 25px rgba(0,0,0,0.4);
-    }
-
-    .alert-header {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      color: #d32f2f;
-      font-weight: bold;
-      font-size: 1.1rem;
-      margin-bottom: 12px;
-    }
-
-    .alert-body {
-      font-size: 0.95rem;
-      line-height: 1.4;
-      margin-bottom: 20px;
-      text-align: left;
-    }
-
-    .alert-btn {
-      background: #007aff;
-      color: white;
-      border-radius: 10px;
-      padding: 12px;
-      font-weight: 600;
-      border: none;
-      width: 100%;
     }
 
     @keyframes fadeIn {
@@ -166,68 +226,76 @@
 </head>
 <body>
 
-<div class="container">
-  <!-- MÓVIL SIMULADO -->
-  <div class="phone" id="phone">
-    <div class="phone-screen">
-      <div class="clock" id="clock">12:00</div>
-      <div class="date" id="date">Dimecres, 7 d'octubre</div>
+<div class="main-grid">
+
+  <!-- DASHBOARD: MAPA E INCIDENCIAS EN TIEMPO REAL -->
+  <div class="dashboard">
+    <div class="card">
+      <h2 style="margin-top:0;">🗺️ Selector d'Àrea d'Alerta (Comunitat Valenciana)</h2>
+      <p style="font-size: 0.85rem; color: var(--text-sub);">Fes clic sobre una zona o arrossega el cercle per definir l'àrea de cobertura de l'alerta ES-Alert.</p>
+      <div id="map"></div>
     </div>
 
-    <!-- NOTIFICACIÓN DE EMERGENCIA ES-ALERT -->
-    <div class="alert-overlay" id="alertOverlay">
-      <div class="alert-box">
-        <div class="alert-header">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-          </svg>
-          ALERTA DE PROTECCIÓ CIVIL
-        </div>
-        <div class="alert-body" id="alertText">
-          <!-- El texto de la alerta se insertará dinámicamente -->
-        </div>
-        <button class="alert-btn" onclick="stopAlert()">Aceptar</button>
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3 style="margin:0;">🚨 Feed d'Incidències en Directe</h3>
+        <button id="simToggle" onclick="toggleIncidentGenerator()" style="width: auto; padding: 6px 12px; margin: 0; font-size: 0.8rem;">Pausar Simulació</button>
+      </div>
+      <div class="incident-feed" id="incidentFeed">
+        <!-- Incidencias simuladas -->
       </div>
     </div>
   </div>
 
-  <!-- PANEL DE CONFIGURACIÓN -->
-  <div class="controls">
-    <h3>Configurar Simulació ES-Alert</h3>
-    
-    <div class="form-group">
-      <label for="province">Província / Zona:</label>
-      <select id="province" onchange="updateProvinces()">
-        <option value="València">València (litoral/interior)</option>
-        <option value="Alacant">Alacant / Alicante</option>
-        <option value="Castelló">Castelló / Castellón</option>
-      </select>
+  <!-- PANEL D'ALERTA I MÒBIL SIMULAT -->
+  <div class="phone-container">
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="clock" id="clock">12:00</div>
+        <div class="date" id="date">Dimecres, 7 d'octubre</div>
+      </div>
+
+      <!-- INTERFAZ POP-UP ES-ALERT -->
+      <div class="alert-overlay" id="alertOverlay">
+        <div class="alert-box">
+          <div class="alert-header">
+            ⚠️ ALERTA DE PROTECCIÓ CIVIL
+          </div>
+          <div class="alert-body" id="alertText"></div>
+          <button class="alert-btn" onclick="stopAlert()">Acceptar</button>
+        </div>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label for="type">Tipus d'emergència:</label>
-      <select id="type">
-        <option value="Inundació / Inclemències meteorològiques">Inundació / Temporal de pluja</option>
+    <div class="control-panel card">
+      <h3>Enviar Alerta Localitzada</h3>
+
+      <label>Zona Seleccionada:</label>
+      <input type="text" id="selectedAreaText" value="València i àrea metropolitana" readonly style="background:#1e1e1e; color:#0288d1; font-weight:bold; border:none; padding: 4px 0;">
+
+      <label for="riskType">Tipus de Risc / Emergència:</label>
+      <select id="riskType">
+        <option value="Inundacions / Plojes Intensos">Inundacions / Plojes Intensos</option>
         <option value="Incendi Forestal">Incendi Forestal</option>
-        <option value="Risc Químic">Risc Químic</option>
-        <option value="Simulacre">Simulacre de prova</option>
+        <option value="Risc Químic / Industrial">Risc Químic / Industrial</option>
+        <option value="Vents Forts / Temporal Marítim">Vents Forts / Temporal Marítim</option>
+        <option value="Simulacre de Prova">Simulacre de Prova</option>
       </select>
-    </div>
 
-    <div class="form-group">
-      <label for="customMessage">Missatge personalitzat (opcional):</label>
-      <textarea id="customMessage" rows="3" placeholder="Si es deixa en blanc, es generarà el missatge oficial d'emergència..."></textarea>
-    </div>
+      <label for="customText">Missatge personalitzat (opcional):</label>
+      <textarea id="customText" rows="2" placeholder="Deixa en blanc per redactar el text oficial automàtic..."></textarea>
 
-    <button onclick="triggerAlert()">Llançar Alerta ES-Alert</button>
+      <button class="send-btn" onclick="triggerAlert()">Emetre ES-Alert a la Zona</button>
+    </div>
   </div>
+
 </div>
 
-<script>
-  let audioCtx = null;
-  let oscillator = null;
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  // Actualiza la hora del móvil
+<script>
+  // Setup Reloj
   function updateClock() {
     const now = new Date();
     document.getElementById('clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -235,57 +303,73 @@
   setInterval(updateClock, 1000);
   updateClock();
 
-  // Genera el sonido agudo estridente del ES-Alert usando el API de Audio del navegador
+  // Inicializar Mapa centrado en la Comunitat Valenciana
+  const map = L.map('map').setView([39.4699, -0.3763], 8);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    maxZoom: 18
+  }).addTo(map);
+
+  // Zona de alerta interactiva (Círculo difusor de Cell Broadcast)
+  let alertCircle = L.circle([39.4699, -0.3763], {
+    color: '#d32f2f',
+    fillColor: '#f44336',
+    fillOpacity: 0.35,
+    radius: 25000,
+    draggable: true
+  }).addTo(map);
+
+  map.on('click', function(e) {
+    alertCircle.setLatLng(e.latlng);
+    updateAreaLabel(e.latlng);
+  });
+
+  function updateAreaLabel(latlng) {
+    // Estimación rápida de ubicación según coordenadas dentro de CV
+    let locationName = "Comunitat Valenciana";
+    if (latlng.lat > 39.8) locationName = "Província de Castelló / Nord";
+    else if (latlng.lat < 38.8) locationName = "Província d'Alacant / Sud";
+    else locationName = "Àrea Central / València i Comarques";
+
+    document.getElementById('selectedAreaText').value = `${locationName} (${latlng.lat.toFixed(2)}, ${latlng.lng.toFixed(2)})`;
+  }
+
+  // Audio Context para reproducción de alarma ES-Alert
+  let audioCtx = null;
   function playAlertSound() {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // Generador de tono alternado (sonido de alarma)
     let isHigh = true;
     const interval = setInterval(() => {
       if (!audioCtx) {
         clearInterval(interval);
         return;
       }
-      
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'sawtooth';
-      osc.frequency.value = isHigh ? 960 : 800; // Frecuencia de alerta
-      
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      osc.frequency.value = isHigh ? 960 : 800;
+      gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
-      
       osc.start();
       osc.stop(audioCtx.currentTime + 0.15);
-      
       isHigh = !isHigh;
     }, 200);
   }
 
   function triggerAlert() {
-    const province = document.getElementById('province').value;
-    const type = document.getElementById('type').value;
-    const custom = document.getElementById('customMessage').value.trim();
+    const area = document.getElementById('selectedAreaText').value;
+    const risk = document.getElementById('riskType').value;
+    const custom = document.getElementById('customText').value.trim();
 
-    let message = "";
-
-    if (custom !== "") {
-      message = custom;
-    } else {
-      if (type === "Simulacre") {
-        message = `PROVA DEL SISTEMA D'ALERTA A LA POBLACIÓ ES-ALERT DE LA GENERALITAT VALENCIANA. No cride al 112. És una prova. En una emergència real rebrà instruccions de protecció.`;
-      } else if (type === "Inundació / Inclemències meteorològiques") {
-        message = `ALERTA DE PROTECCIÓ CIVIL - GENERALITAT VALENCIANA. Risc extrem de pluja intensa i inundacions a la zona de ${province}. S'aconsella evitar qualsevol desplaçament, no acostar-se a barrancs ni rieres i romandre en zones altes.`;
-      } else {
-        message = `ALERTA DE PROTECCIÓ CIVIL - GENERALITAT VALENCIANA. Emergent activat per ${type.toLowerCase()} a ${province}. Seguiu les instruccions de les autoritats i eviteu la zona afectada.`;
-      }
+    let msg = custom;
+    if (!msg) {
+      msg = `ALERTA DE PROTECCIÓ CIVIL - GENERALITAT VALENCIANA. Activada alerta per ${risk.toLowerCase()} a la zona de ${area}. Eviteu desplaçaments no necessaris, no creueu barrancs ni zones inundables i seguiu les indicacions dels serveis d'emergència.`;
     }
 
-    document.getElementById('alertText').innerText = message;
+    document.getElementById('alertText').innerText = msg;
     document.getElementById('alertOverlay').style.display = 'flex';
-
-    // Reproducir sonido
     playAlertSound();
   }
 
@@ -295,6 +379,63 @@
       audioCtx.close();
       audioCtx = null;
     }
+  }
+
+  // Generador dinámico de incidencias
+  const incidentTypes = [
+    { type: 'rain', icon: '🌧️', title: 'Acumulació d'aigua > 40mm/h', risk: 'Inundacions / Plojes Intensos' },
+    { type: 'rain', icon: '⚠️', title: 'Desbordament puntual de barranc', risk: 'Inundacions / Plojes Intensos' },
+    { type: 'fire', icon: '🔥', title: 'Avís d'incendi forestal actiu', risk: 'Incendi Forestal' },
+    { type: 'chemical', icon: '☣️', title: 'Fuga de substància en polígon industrial', risk: 'Risc Químic / Industrial' }
+  ];
+
+  const towns = [
+    { name: 'Alzira', lat: 39.15, lng: -0.43 },
+    { name: 'Sagunt', lat: 39.68, lng: -0.27 },
+    { name: 'Ontinyent', lat: 38.82, lng: -0.60 },
+    { name: 'Torrent', lat: 39.43, lng: -0.46 },
+    { name: 'Alcoi', lat: 38.70, lng: -0.47 },
+    { name: 'Orihuela', lat: 38.08, lng: -0.94 },
+    { name: 'Borriana', lat: 39.88, lng: -0.08 },
+    { name: 'Vinaròs', lat: 40.47, lng: 0.47 }
+  ];
+
+  let simActive = true;
+  function addRandomIncident() {
+    if (!simActive) return;
+
+    const inc = incidentTypes[Math.floor(Math.random() * incidentTypes.length)];
+    const town = towns[Math.floor(Math.random() * towns.length)];
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Añadir marcador en mapa
+    const marker = L.marker([town.lat, town.lng]).addTo(map);
+    marker.bindPopup(`<b>${inc.icon} ${inc.title}</b><br>${town.name}`).openPopup();
+
+    // Actualizar feed
+    const feed = document.getElementById('incidentFeed');
+    const item = document.createElement('div');
+    item.className = `incident-item ${inc.type}`;
+    item.innerHTML = `
+      <div>
+        <strong>${inc.icon} ${town.name}:</strong> ${inc.title}
+      </div>
+      <span class="incident-time">${time}</span>
+    `;
+
+    feed.prepend(item);
+
+    // Mover área de alerta automáticamente a la última incidencia
+    alertCircle.setLatLng([town.lat, town.lng]);
+    updateAreaLabel({ lat: town.lat, lng: town.lng });
+  }
+
+  let intervalId = setInterval(addRandomIncident, 6000);
+  addRandomIncident(); // Primera incidencia inicial
+
+  function toggleIncidentGenerator() {
+    simActive = !simActive;
+    document.getElementById('simToggle').innerText = simActive ? 'Pausar Simulació' : 'Reprendre Simulació';
   }
 </script>
 
