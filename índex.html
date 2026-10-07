@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador ES-Alert Comunitat Valenciana</title>
+  <style>
+    :root {
+      --primary: #d32f2f;
+      --bg: #121212;
+      --card-bg: #1e1e1e;
+      --text: #ffffff;
+      --text-sub: #aaa;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    /* Pantalla del teléfono simulado */
+    .phone {
+      background: #000;
+      border: 12px solid #333;
+      border-radius: 40px;
+      height: 650px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background-size: cover;
+      background-position: center;
+    }
+
+    /* Fondo simulado de pantalla de bloqueo */
+    .phone-screen {
+      padding: 40px 20px 20px 20px;
+      text-align: center;
+    }
+
+    .clock {
+      font-size: 3.5rem;
+      font-weight: 300;
+      margin-top: 20px;
+    }
+
+    .date {
+      font-size: 1rem;
+      color: var(--text-sub);
+    }
+
+    /* Panel de controles */
+    .controls {
+      background: var(--card-bg);
+      padding: 15px;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 5px;
+      color: var(--text-sub);
+    }
+
+    select, input, textarea, button {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      background: #2b2b2b;
+      color: #fff;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background-color: #b71c1c;
+    }
+
+    /* Pop-up de la alerta estilo móvil */
+    .alert-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      z-index: 100;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .alert-box {
+      background: #fdfdfd;
+      color: #000;
+      border-radius: 18px;
+      padding: 20px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.4);
+    }
+
+    .alert-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #d32f2f;
+      font-weight: bold;
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+    }
+
+    .alert-body {
+      font-size: 0.95rem;
+      line-height: 1.4;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .alert-btn {
+      background: #007aff;
+      color: white;
+      border-radius: 10px;
+      padding: 12px;
+      font-weight: 600;
+      border: none;
+      width: 100%;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- MÓVIL SIMULADO -->
+  <div class="phone" id="phone">
+    <div class="phone-screen">
+      <div class="clock" id="clock">12:00</div>
+      <div class="date" id="date">Dimecres, 7 d'octubre</div>
+    </div>
+
+    <!-- NOTIFICACIÓN DE EMERGENCIA ES-ALERT -->
+    <div class="alert-overlay" id="alertOverlay">
+      <div class="alert-box">
+        <div class="alert-header">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          ALERTA DE PROTECCIÓ CIVIL
+        </div>
+        <div class="alert-body" id="alertText">
+          <!-- El texto de la alerta se insertará dinámicamente -->
+        </div>
+        <button class="alert-btn" onclick="stopAlert()">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL DE CONFIGURACIÓN -->
+  <div class="controls">
+    <h3>Configurar Simulació ES-Alert</h3>
+    
+    <div class="form-group">
+      <label for="province">Província / Zona:</label>
+      <select id="province" onchange="updateProvinces()">
+        <option value="València">València (litoral/interior)</option>
+        <option value="Alacant">Alacant / Alicante</option>
+        <option value="Castelló">Castelló / Castellón</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="type">Tipus d'emergència:</label>
+      <select id="type">
+        <option value="Inundació / Inclemències meteorològiques">Inundació / Temporal de pluja</option>
+        <option value="Incendi Forestal">Incendi Forestal</option>
+        <option value="Risc Químic">Risc Químic</option>
+        <option value="Simulacre">Simulacre de prova</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="customMessage">Missatge personalitzat (opcional):</label>
+      <textarea id="customMessage" rows="3" placeholder="Si es deixa en blanc, es generarà el missatge oficial d'emergència..."></textarea>
+    </div>
+
+    <button onclick="triggerAlert()">Llançar Alerta ES-Alert</button>
+  </div>
+</div>
+
+<script>
+  let audioCtx = null;
+  let oscillator = null;
+
+  // Actualiza la hora del móvil
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Genera el sonido agudo estridente del ES-Alert usando el API de Audio del navegador
+  function playAlertSound() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Generador de tono alternado (sonido de alarma)
+    let isHigh = true;
+    const interval = setInterval(() => {
+      if (!audioCtx) {
+        clearInterval(interval);
+        return;
+      }
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.value = isHigh ? 960 : 800; // Frecuencia de alerta
+      
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.15);
+      
+      isHigh = !isHigh;
+    }, 200);
+  }
+
+  function triggerAlert() {
+    const province = document.getElementById('province').value;
+    const type = document.getElementById('type').value;
+    const custom = document.getElementById('customMessage').value.trim();
+
+    let message = "";
+
+    if (custom !== "") {
+      message = custom;
+    } else {
+      if (type === "Simulacre") {
+        message = `PROVA DEL SISTEMA D'ALERTA A LA POBLACIÓ ES-ALERT DE LA GENERALITAT VALENCIANA. No cride al 112. És una prova. En una emergència real rebrà instruccions de protecció.`;
+      } else if (type === "Inundació / Inclemències meteorològiques") {
+        message = `ALERTA DE PROTECCIÓ CIVIL - GENERALITAT VALENCIANA. Risc extrem de pluja intensa i inundacions a la zona de ${province}. S'aconsella evitar qualsevol desplaçament, no acostar-se a barrancs ni rieres i romandre en zones altes.`;
+      } else {
+        message = `ALERTA DE PROTECCIÓ CIVIL - GENERALITAT VALENCIANA. Emergent activat per ${type.toLowerCase()} a ${province}. Seguiu les instruccions de les autoritats i eviteu la zona afectada.`;
+      }
+    }
+
+    document.getElementById('alertText').innerText = message;
+    document.getElementById('alertOverlay').style.display = 'flex';
+
+    // Reproducir sonido
+    playAlertSound();
+  }
+
+  function stopAlert() {
+    document.getElementById('alertOverlay').style.display = 'none';
+    if (audioCtx) {
+      audioCtx.close();
+      audioCtx = null;
+    }
+  }
+</script>
+
+</body>
+</html>
